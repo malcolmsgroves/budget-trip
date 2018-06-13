@@ -15,24 +15,23 @@ db.once("open", () => {
         const user = new User({ name: faker.name.findName(), email: faker.internet.email() });
         user.save(() => {
             for(let trip_id = 0; trip_id < 5; ++trip_id) {
-                const trip = new Trip({
-                    title: faker.lorem.word(),
-                    description: faker.lorem.sentence(),
-                    author: user._id
-                });
-                trip.save(() => {
+                let expenses = [];
+                for(let expense_id = 0; expense_id < 3; ++expense_id) {
                     const expense = new Expense ({
                         title: faker.lorem.word(),
                         category: categories[Math.floor(Math.random()*categories.length)],
-                        cost: faker.random.number(),
-                        trip: trip._id
+                        cost: faker.random.number()
                     });
-                    expense.save();
+                    expenses.push(expense);
+                }
+                const trip = new Trip({
+                    title: faker.lorem.word(),
+                    description: faker.lorem.sentence(),
+                    author: user._id,
+                    expenses: [expenses]
                 });
                 console.log(user);
             }
         });
     };
 });
-
-process.exit(0);
