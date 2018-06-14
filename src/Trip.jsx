@@ -1,6 +1,13 @@
 import React, { Component } from 'react';
 import TripData from './TripData';
 import TripForm from './TripForm';
+import Button from '@material-ui/core/Button';
+import ListItem from '@material-ui/core/ListItem';
+import Typography from '@material-ui/core/Typography';
+import List from '@material-ui/core/List';
+import Grid from '@material-ui/core/Grid';
+import Paper from '@material-ui/core/Paper';
+import Divider from '@material-ui/core/Divider';
 
 class Trip extends Component {
     constructor(props) {
@@ -16,6 +23,8 @@ class Trip extends Component {
         this.edit = this.edit.bind(this);
         this.setTrip = this.setTrip.bind(this);
         this.calculateTotals = this.calculateTotals.bind(this);
+        this.deleteExpense = this.deleteExpense.bind(this);
+        this.addExpense = this.addExpense.bind(this);
     }
 
     componentDidMount() {
@@ -29,9 +38,10 @@ class Trip extends Component {
                 if(other_key) {
                     this.setState(prevState => {
                         let newState = prevState;
-                        newState.trip.expenses[index][other_key] = value;
+                        newState.trip.expenses[index][other_key] =
+                            other_key === "cost" ? Number(value) : value;
                         return newState;
-                    });
+                    }, this.calculateTotals);
                 } else {
                     this.setState(prevState => {
                         let newState = prevState;
@@ -50,7 +60,7 @@ class Trip extends Component {
             })
             .then(res => {
                 if(res.name === "CastError") {
-                    this.setState({ error: "Error: trip not found" });
+                    this.setState({ error: "trip not found" });
                 } else {
                     this.setTrip(res);
                 }
@@ -68,8 +78,32 @@ class Trip extends Component {
             Shopping: 0
         };
         this.setState({
-            trip: Object.assign(trip, { costs })
+            trip: Object.assign(trip, { costs }),
+            edit: false
         }, this.calculateTotals);
+    }
+
+    deleteExpense(index) {
+        return () => {
+            console.log(index);
+            this.setState(prev => {
+                let newState = prev;
+                newState.trip.expenses.splice(index, 1);
+                return newState;
+            }, this.calculateTotals);
+        };
+    }
+
+    addExpense() {
+        this.setState(prev => {
+            let newState = prev;
+            newState.trip.expenses.push({
+                cost: 0,
+                title: "",
+                category: ""
+            });
+            return newState;
+        });
     }
 
     calculateTotals() {
@@ -81,7 +115,7 @@ class Trip extends Component {
         };
         this.state.trip.expenses.forEach(exp => {
             costs.Total += exp.cost;
-            costs[exp.category] += exp.cost;
+            if(exp.category) costs[exp.category] += exp.cost;
         });
         this.setState(prev => {
             prev.trip.costs = costs;
@@ -101,10 +135,7 @@ class Trip extends Component {
                 return res.json();
             })
             .then(res => {
-                this.setState({
-                    trip: res,
-                    edit: false
-                });
+                this.setTrip(res);
             })
             .catch(err => console.log(err));
     }
@@ -115,28 +146,59 @@ class Trip extends Component {
         });
     }
 
-    currentElement() {
-        if(this.state.error) {
-            return <div>{this.state.error}</div>;
-        }
-        if(this.state.trip && this.state.edit) {
-            return (
-                <TripForm trip={this.state.trip}
-                          handleChange={this.handleChange}
-                          save={this.save}/>
-            );
-        }
-        if(this.state.trip) {
-            return <TripData trip={this.state.trip} edit={this.edit}/>;
-        }
-        return <div> loading... </div>;
+    getCostList() {
+        let CostListItems = Object.keys(this.state.trip.costs).map((cost, i) => {
+            if(cost !== "Total") {
+                return (
+                    <ListItem key={i}>
+                      {`${cost}: $${this.state.trip.costs[cost]}`}
+                    </ListItem>
+                );
+            }
+            return null;
+        });
+
+        CostListItems.push(<Divider key="divider"/>);
+        CostListItems.push(
+            <ListItem key="total">
+              <Typography variant="title">{`Total: $${this.state.trip.costs['Total']}`}</Typography>
+            </ListItem>
+        );
+        return CostListItems;
     }
 
+
     render() {
-        const element = this.currentElement();
-        return (
-            <div>{ element }</div>
-        );
+        if(this.state.error) {
+            return <div>Error: {this.state.error}</div>;
+        }
+        if(this.state.trip) {
+            const CostListItems = this.getCostList();
+            return (
+                <Grid container justify="center" spacing={16} direction="row">
+                  <Grid item xs={7}>
+                    <Paper depth={2} style={{padding: 16 }}>
+                      {this.state.edit ?
+                          <TripForm trip={this.state.trip}
+                                        handleChange={this.handleChange}
+                                        save={this.save}
+                                        deleteExpense={this.deleteExpense}
+                                        addExpense={this.addExpense}/>
+                              : <TripData trip={this.state.trip} edit={this.edit}/>
+                          }
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Paper depth={2}>
+                      <List>
+                        { CostListItems }
+                      </List>
+                    </Paper>
+                  </Grid>
+                </Grid>
+            );
+        }
+        return <div> loading... </div>;
     }
 }
 
